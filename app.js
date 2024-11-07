@@ -6,6 +6,9 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import userModel from './models/userSchema.js';
 import cors from 'cors';
+import jwt from "jsonwebtoken";    
+import userVerifyMiddle from './middleware/userVerify.js';
+
 
 
 const port = process.env.PORT 
@@ -91,9 +94,10 @@ app.post('/login', async(req,res)=>{
         });
         return;
     }
+
       // Check if user exists
-      const user = await userModel.findOne({email:email});
-      if(!user){
+      const emailExist = await userModel.findOne({email:email});
+      if(!emailExist){
         res.json({
           message: "User not found",
           status : false
@@ -101,14 +105,29 @@ app.post('/login', async(req,res)=>{
         return;
       }
       // Check if password is correct
-      const isMatch = await bcrypt.compare(password, user.password);
-      if(!isMatch){
+      const comparePassword = await bcrypt.compare(password, emailExist.password);
+      if(!comparePassword){
         res.json({
           message: "Invalid password",
           status : false
         });
         return;
       }
+
+// token 
+var token = jwt.sign(
+  { email: emailExist.email, name: emailExist.name },
+  process.env.JWT_SECRET_KEY
+);
+
+res.json({
+  message: "login successfully",
+  status: true,
+  token,
+});
+
+
+
        // Login successful
        res.json({
         message: "Login successful",
@@ -117,11 +136,24 @@ app.post('/login', async(req,res)=>{
     })
      
 
+        
          
+// get data 
+app.get("/api/getusers", userVerifyMiddle, async (req, res) => {
+  try {
+    const response = await userModel.find({});
 
-         
-         
-
+    res.json({
+      message: "all users get",
+      status: true,
+      data: response,
+    });
+  } catch (error) {
+    res.json({
+      message: error,
+    });
+  }
+});
 
     app.listen(port, () => {
       console.log(`Server start... ${port}`)
